@@ -37,7 +37,6 @@
     "url": "https://github.com/firiz/colony/issues"
   },
   "homepage": "https://github.com/firiz/colony#readme",
-
   "devDependencies": {
     "eslint": "^5.4.0",
     "eslint-config-airbnb-base": "^13.1.0",
