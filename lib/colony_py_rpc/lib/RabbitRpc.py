@@ -4,17 +4,32 @@ import random
 from lib.colony_py_rpc.lib.Rpc import Rpc
 
 class Job:
-  def __init__(self, handler, queue_name, publisher):
+  def __init__(self, handler, queue_name, publisher, request_checker, response_checker):
     self.handler = handler
     self.queue_name = queue_name
     self.publisher = publisher
+    self.request_checker = request_checker
+    self.response_checker = response_checker
 
   async def process_incoming_message(self, message: aio_pika.IncomingMessage):
-    data = eval(message.body.decode())
-    result = await self.handler(data)
+    request = message.body
+
+    if self.request_checker:
+      self.request_checker.ParseFromString(request)
+      request = self.request_checker
+    else:
+      request = eval(request.decode())
+
+    result = await self.handler(request)
+
+    if self.response_checker:
+      result = self.response_checker.SerializeToString(result)
+    else:
+      pass;
+
     await self.publisher.default_exchange.publish(
       aio_pika.Message(
-        body=str(result).encode(),
+        body=result,
         correlation_id=message.correlation_id
       ),
       routing_key=message.reply_to,
@@ -71,10 +86,6 @@ class RabbitRpc(Rpc):
         message.body.decode()
       )
 
-
-  async def __add_handler(self):
-    pass;
-
   async def init(self):
     self.connection = await aio_pika.connect_robust(
       "amqp://localhost"
@@ -82,20 +93,24 @@ class RabbitRpc(Rpc):
     self.channel = await self.connection.channel()
     await self.channel.set_qos(prefetch_count=5)
     self.resQueue = await self.channel.declare_queue("", auto_delete=True)
-    await self.resQueue.consume(self.__response_handler) # TODO, HERE we may need some changes
+    await self.resQueue.consume(self.__response_handler)
     return self.connection
 
-  async def add_handler(self, queue_name, handler):
-    new_queue = await self.channel.declare_queue(queue_name)
-    job_handler = Job(handler, queue_name, self.channel)
+  async def add_handler(self, queue_name, handler, request_checker=None, response_checker=None):
+    new_queue = await self.channel.declare_queue(queue_name, auto_delete=True) # TODO, We have to remove it
+    job_handler = Job(handler, queue_name, self.channel, request_checker, response_checker)
     await new_queue.consume(job_handler.process_incoming_message)
 
 
   async def call(self, queue_name, data):
     correlation_id = self.__generate_uuid()
+    if callable(data.SerializeToString):
+      data = data.SerializeToString()
+    else:
+      data = str(data).encode()
     await self.channel.default_exchange.publish(
       aio_pika.Message(
-        body=str(data).encode(),
+        body=data,
         correlation_id=correlation_id,
         reply_to=self.resQueue.name
       ),

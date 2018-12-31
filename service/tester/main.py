@@ -1,10 +1,14 @@
 import asyncio
 from lib.colony_py_rpc.lib.RabbitRpc import RabbitRpc
+import service.math_python.proto.service_pb2 as service_pb2
 
 async def main():
   client = RabbitRpc()
   await client.init()
-  response = await client.call('math:add:py', {'first': 1, 'second': 2})
+  request = service_pb2.CalculateRequest()
+  request.a = 1
+  request.b = 2
+  response = await client.call('math.Sum.Calculate', request)
   print(response)
 
 

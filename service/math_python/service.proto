@@ -1,0 +1,25 @@
+syntax = "proto3";
+option java_package = "math";
+option java_generic_services = true;
+option py_generic_services = true;
+
+package math;
+
+
+message CalculateRequest {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+message CalculateReply {
+  int32 sum = 1;
+}
+
+service Sum {
+  rpc Calculate (CalculateRequest) returns (CalculateReply) {}
+}
+
+service Power {
+  rpc Calculate (CalculateRequest) returns (CalculateReply) {}
+}
+

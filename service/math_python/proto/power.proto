@@ -1,0 +1,16 @@
+syntax = "proto3";
+option py_generic_services = true;
+package math.power;
+
+service Power {
+  rpc Calculate (CalculateRequest) returns (CalculateReply) {}
+}
+
+message CalculateRequest {
+  int32 b = 1;
+  int32 e = 2;
+}
+
+message CalculateReply {
+  int32 pow = 1;
+}

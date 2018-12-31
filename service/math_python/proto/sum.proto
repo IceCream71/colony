@@ -1,0 +1,17 @@
+syntax = "proto3";
+package math.sum;
+option py_generic_services = true;
+
+
+service Sum {
+  rpc Calculate (CalculateRequest) returns (CalculateReply) {}
+}
+
+message CalculateRequest {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+message CalculateReply {
+  int32 sum = 1;
+}
