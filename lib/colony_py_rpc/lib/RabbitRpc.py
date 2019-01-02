@@ -2,30 +2,38 @@ import asyncio
 import aio_pika
 import random
 from lib.colony_py_rpc.lib.Rpc import Rpc
+import dict_to_protobuf
 
 class Job:
-  def __init__(self, handler, queue_name, publisher, request_checker, response_checker):
+  def __init__(self, handler, queue_name, publisher, request_class, response_class):
     self.handler = handler
     self.queue_name = queue_name
     self.publisher = publisher
-    self.request_checker = request_checker
-    self.response_checker = response_checker
+    self.request_class = request_class
+    self.response_class = response_class
+
+
+  def generate_response(self, result):
+    response = self.response_class()
+    dict_to_protobuf.parse_dict(result, response)
+    return response.SerializeToString()
+
 
   async def process_incoming_message(self, message: aio_pika.IncomingMessage):
-    request = message.body
-
-    if self.request_checker:
-      self.request_checker.ParseFromString(request)
-      request = self.request_checker
+    request_payload = message.body
+    request = None
+    if self.request_class:
+      request = self.request_class()
+      request.ParseFromString(request_payload)
     else:
-      request = eval(request.decode())
+      request = eval(request_payload.decode())
 
     result = await self.handler(request)
 
-    if self.response_checker:
-      result = self.response_checker.SerializeToString(result)
+    if self.response_class:
+      result = self.generate_response(result)
     else:
-      pass;
+      result = str(result).encode()
 
     await self.publisher.default_exchange.publish(
       aio_pika.Message(
@@ -96,9 +104,9 @@ class RabbitRpc(Rpc):
     await self.resQueue.consume(self.__response_handler)
     return self.connection
 
-  async def add_handler(self, queue_name, handler, request_checker=None, response_checker=None):
+  async def add_handler(self, queue_name, handler, request_class=None, response_class=None):
     new_queue = await self.channel.declare_queue(queue_name, auto_delete=True) # TODO, We have to remove it
-    job_handler = Job(handler, queue_name, self.channel, request_checker, response_checker)
+    job_handler = Job(handler, queue_name, self.channel, request_class, response_class)
     await new_queue.consume(job_handler.process_incoming_message)
 
 

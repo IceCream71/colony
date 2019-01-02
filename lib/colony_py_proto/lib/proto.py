@@ -15,6 +15,6 @@ class Proto:
   async def implement(self, method_name, implementation):
     method_name = method_name.split('.')[-1]
     method = self.service.DESCRIPTOR.FindMethodByName(method_name)
-    request_checker = self.service.GetRequestClass(method)()
-    response_checker = self.service.GetResponseClass(method)()
-    await self.client.add_handler(method.full_name, implementation, request_checker, response_checker)
+    request_class = self.service.GetRequestClass(method)
+    response_class = self.service.GetResponseClass(method)
+    await self.client.add_handler(method.full_name, implementation, request_class, response_class)
